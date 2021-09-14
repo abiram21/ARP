@@ -29,8 +29,7 @@ def topology():
 
     s4 = net.addSwitch('s4')
     s5 = net.addSwitch('s5')
-
-
+    s6 = net.addSwitch('s6')
     c0 = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6633)
 
     linkopt1 = dict(bw=10, delay='1ms', loss=0)
@@ -43,21 +42,22 @@ def topology():
 
     net.addLink(h2, s1, **linkopt3)
 
-    net.addLink(h3, s2, **linkopt3)
- 
+    net.addLink(h3, s6, **linkopt3)
 
 
     net.addLink(s1, s2, **linkopt1)
 
     net.addLink(s1, s3, **linkopt1)
 
-    net.addLink(s1, s4, **linkopt1)
+    net.addLink(s1, s4, **linkopt2)
 
-    net.addLink(s2, s3, **linkopt2)
+    net.addLink(s2, s5, **linkopt2)
 
-    net.addLink(s4, s5, **linkopt1)
+    net.addLink(s5, s6, **linkopt2)
 
-    net.addLink(s2, s5, **linkopt1)
+    net.addLink(s4, s6, **linkopt1)
+
+    net.addLink(s3, s6, **linkopt1)
 
     net.build()
 
@@ -72,6 +72,7 @@ def topology():
     s4.start([c0])
 
     s5.start([c0])
+    s6.start([c0])
 
     print("*** Running CLI")
 

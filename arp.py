@@ -114,27 +114,44 @@ class ProjectController(app_manager.RyuApp):
         stack = [(src, [src])]
         while stack:
             (node, path) = stack.pop()
-            for next in set(adjacency[node].keys()) - set(path):
-                if (bw[str(path[len(path) - 1])][str(next)] != None):
-                    if next is dst:
-                        paths.append(path + [next])
+            for next_node in set(adjacency[node].keys()) - set(path):
+                if bw[str(path[len(path) - 1])][str(next_node)] is not None:
+                    if next_node is dst:
+                        paths.append((path + [next_node]))
                     else:
-                        print(next)
-                        stack.append((next, path + [next]))
-                else:
-                    continue;
+                        stack.append((next_node, path + [next_node]))
 
-        # for i in range(0, len(paths) - 1):
-        #     link_abw = bw_available[str(path[i])][str(path[i + 1])];
-        #     bandwidthArr.append(link_abw);
-        print("Available paths from ", src, " to ", dst, " : ", paths)
+        paths = sorted(paths, key=len)
+        # print('unsorted paths', paths)
+        for i in range(0, len(paths)-1):
+            while len(paths[i]) == len(paths[i + 1]):
+                path_one_bw = []
+                path_two_bw = []
+                for j in range(0, len(paths[i])-1):
+                    link_bandwidth1 = bw[str(paths[i][j])][str(paths[i][j+1])]
+                    path_one_bw.append(link_bandwidth1)
+                for j in range(0, len(paths[i+1])-1):
+                    link_bandwidth2 = bw[str(paths[i+1][j])][str(paths[i + 1][j+1])]
+                    path_two_bw.append(link_bandwidth2)
+                one_bw = min(path_one_bw)
+                two_bw = min(path_two_bw)
+                # print("onebw",bw[str(1)][str(4)])
+                # print("onebw",bw[str(4)][str(1)])
+                if one_bw < two_bw:
+                    paths[i], paths[i+1] = paths[i+1], paths[i]
+
+
+        # print("SOrted path", paths)
+        # print("Available paths from ", src, " to ", dst, " : ", paths)
         return paths
+
+
     def get_link_cost(self, s1, s2):
         '''
-        Get the link cost between two switches 
+        Get the link cost between two switches
         '''
-        e1 = self.adjacency[s1][s2]
-        e2 = self.adjacency[s2][s1]
+        e1 = adjacency[s1][s2]
+        e2 = adjacency[s2][s1]
         bl = min(self.bandwidths[s1][e1], self.bandwidths[s2][e2])
         print(self.bandwidths[s1][e1], self.bandwidths[s2][e2])
         ew = REFERENCE_BW/bl
@@ -150,29 +167,32 @@ class ProjectController(app_manager.RyuApp):
         return cost
 
     def get_optimal_paths(self, src, dst):
-        '''
-        Get the n-most optimal paths according to MAX_PATHS
-        '''
+
         paths = self.get_paths(src, dst)
-        paths = sorted(paths, key=len)
-        optimalPath = []
+        optimal_path = []
+        max_bandwidth = 0;
+        max_bandwidth_path = '';
         for path in paths:
-            bandwidthArr = [];
+            bandwidth_arr = [];
+            total_link_bw = [];
             for i in range(0, len(path) - 1):
+                total_link_bw.append(bw[str(path[i])][str(path[i + 1])])
                 link_abw = bw_available[str(path[i])][str(path[i + 1])];
-                bandwidthArr.append(link_abw);
+                bandwidth_arr.append(link_abw);
             # print(bandwidthArr)
-            if(len(bandwidthArr)>0):
-                pathBD = min(bandwidthArr);
-                print('min Bandwisdth ', pathBD );
-                if (pathBD < 5000):
-                    continue;
-                else:
-                    optimalPath.append(path)
-                    print(optimalPath)
-                    return optimalPath
+            path_bd = min(bandwidth_arr);
+            if max_bandwidth < path_bd:
+                max_bandwidth = path_bd;
+                max_bandwidth_path = path;
+            if len(bandwidth_arr) > 0:
+                link_bw = min(total_link_bw);
+                if path_bd >= 0.1*link_bw*1000:
+                    optimal_path.append(path)
+                    print(optimal_path)
+                    return optimal_path;
             else:
                 return;
+        return max_bandwidth_path;
         # paths_count = len(paths) if len(
         #     paths) < MAX_PATHS else MAX_PATHS
         # return sorted(paths, key=lambda x: self.get_path_cost(x))[0:(paths_count)]
@@ -186,9 +206,9 @@ class ProjectController(app_manager.RyuApp):
             p = {}
             in_port = first_port
             for s1, s2 in zip(path[:-1], path[1:]):
-                out_port = self.adjacency[s1][s2]
+                out_port = adjacency[s1][s2]
                 p[s1] = (in_port, out_port)
-                in_port = self.adjacency[s2][s1]
+                in_port = adjacency[s2][s1]
             p[path[-1]] = (in_port, last_port)
             paths_p.append(p)
         return paths_p
@@ -372,10 +392,6 @@ class ProjectController(app_manager.RyuApp):
                     # print dpid, p, stat.port_no
 
                     if byte[dpid][p] and byte[dpid][p] > 0:
-                        e1 = adjacency[dpid][p]
-                        e2 = adjacency[p][dpid]
-                        bl = min(self.bandwidths[dpid][e1], self.bandwidths[p][e2])
-                        print(bl)
                         bw_used[dpid][p] = (stat.tx_bytes - byte[dpid][p]) * 8.0 / (time.time() - clock[dpid][p]) / 1000
 
                         bw_available[str(dpid)][str(p)] = int(bw[str(dpid)][str(p)]) * 1000.0 - bw_used[dpid][p]
@@ -494,14 +510,14 @@ class ProjectController(app_manager.RyuApp):
         if switch in self.switches:
             self.switches.remove(switch)
             del self.datapath_list[switch]
-            del self.adjacency[switch]
+            del adjacency[switch]
 
     @set_ev_cls(event.EventLinkAdd, MAIN_DISPATCHER)
     def link_add_handler(self, ev):
         s1 = ev.link.src
         s2 = ev.link.dst
-        self.adjacency[s1.dpid][s2.dpid] = s1.port_no
-        self.adjacency[s2.dpid][s1.dpid] = s2.port_no
+        adjacency[s1.dpid][s2.dpid] = s1.port_no
+        adjacency[s2.dpid][s1.dpid] = s2.port_no
 
     @set_ev_cls(event.EventLinkDelete, MAIN_DISPATCHER)
     def link_delete_handler(self, ev):
@@ -509,7 +525,7 @@ class ProjectController(app_manager.RyuApp):
         s2 = ev.link.dst
         # Exception handling if switch already deleted
         try:
-            del self.adjacency[s1.dpid][s2.dpid]
-            del self.adjacency[s2.dpid][s1.dpid]
+            del adjacency[s1.dpid][s2.dpid]
+            del adjacency[s2.dpid][s1.dpid]
         except KeyError:
             pass
