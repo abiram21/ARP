@@ -19,25 +19,27 @@ def topology():
     h2 = net.addHost('h2', mac="00:00:00:00:00:02")
 
     h3 = net.addHost('h3', mac="00:00:00:00:00:03")
-    h4 = net.addHost('h4', mac="00:00:00:00:00:04")
 
-    s1 = net.addSwitch('s1')
 
-    s2 = net.addSwitch('s2')
+    s1 = net.addSwitch('s1', dpid="0000000000000001")
 
-    s3 = net.addSwitch('s3')
+    s2 = net.addSwitch('s2', dpid="0000000000000002")
 
-    s4 = net.addSwitch('s4')
-    s5 = net.addSwitch('s5')
-    s6 = net.addSwitch('s6')
-    s7 = net.addSwitch('s7')
-    s8 = net.addSwitch('s8')
+    s3 = net.addSwitch('s3', dpid="0000000000000003")
+
+    s4 = net.addSwitch('s4', dpid="0000000000000004")
+
+    s5 = net.addSwitch('s5', dpid="0000000000000005")
+
+    s6 = net.addSwitch('s6', dpid="0000000000000006")
+
+
 
     c0 = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6633)
 
-    linkopt1 = dict(bw=10, delay='1ms', loss=0)
+    linkopt1 = dict(bw=20, delay='1ms', loss=0)
 
-    linkopt2 = dict(bw=8, delay='1ms', loss=0)
+    linkopt2 = dict(bw=30, delay='1ms', loss=0)
 
     linkopt3 = dict(bw=100, delay='1ms', loss=0)
 
@@ -48,26 +50,28 @@ def topology():
     net.addLink(h3, s6, **linkopt3)
 
 
+
+
     net.addLink(s1, s2, **linkopt1)
 
     net.addLink(s1, s3, **linkopt1)
 
     net.addLink(s1, s4, **linkopt2)
 
-    net.addLink(s2, s5, **linkopt2)
+    net.addLink(s2, s5, **linkopt1)
 
-    net.addLink(s5, s6, **linkopt2)
+    net.addLink(s2, s3, **linkopt1)
 
-    net.addLink(s4, s6, **linkopt1)
+    net.addLink(s3, s4, **linkopt2)
+    
 
     net.addLink(s3, s6, **linkopt1)
 
-    net.addLink(s4, s7, **linkopt2)
+    net.addLink(s5, s6, **linkopt1)
+ 
+    net.addLink(s4, s6, **linkopt2)
 
-    net.addLink(s7, s8, **linkopt1)
-
-    net.addLink(s6, s8, **linkopt1)
-
+    
     net.build()
 
     c0.start()
@@ -81,10 +85,10 @@ def topology():
     s4.start([c0])
 
     s5.start([c0])
+
     s6.start([c0])
 
-    s7.start([c0])
-    s8.start([c0])
+
 
     print("*** Running CLI")
 

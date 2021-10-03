@@ -23,6 +23,7 @@ from ryu.lib import hub
 import os
 import random
 import time
+import numpy as np
 
 # Cisco Reference bandwidth = 1 Gbps
 REFERENCE_BW = 10000000
@@ -120,11 +121,11 @@ class ProjectController(app_manager.RyuApp):
                         paths.append((path + [next_node]))
                     else:
                         stack.append((next_node, path + [next_node]))
+                        stack.append((next_node, path + [next_node]))
 
         paths = sorted(paths, key=len)
-        # print('unsorted paths', paths)
         for i in range(0, len(paths)-1):
-            while len(paths[i]) == len(paths[i + 1]):
+            if len(paths[i]) == len(paths[i + 1]):
                 path_one_bw = []
                 path_two_bw = []
                 for j in range(0, len(paths[i])-1):
@@ -135,14 +136,11 @@ class ProjectController(app_manager.RyuApp):
                     path_two_bw.append(link_bandwidth2)
                 one_bw = min(path_one_bw)
                 two_bw = min(path_two_bw)
-                # print("onebw",bw[str(1)][str(4)])
-                # print("onebw",bw[str(4)][str(1)])
+
                 if one_bw < two_bw:
                     paths[i], paths[i+1] = paths[i+1], paths[i]
-
-
-        # print("SOrted path", paths)
-        # print("Available paths from ", src, " to ", dst, " : ", paths)
+        paths = [i for n, i in enumerate(paths) if i not in paths[:n]]
+        print("Available Paths", paths)
         return paths
 
 
@@ -153,7 +151,6 @@ class ProjectController(app_manager.RyuApp):
         e1 = adjacency[s1][s2]
         e2 = adjacency[s2][s1]
         bl = min(self.bandwidths[s1][e1], self.bandwidths[s2][e2])
-        print(self.bandwidths[s1][e1], self.bandwidths[s2][e2])
         ew = REFERENCE_BW/bl
         return ew
 
@@ -186,9 +183,9 @@ class ProjectController(app_manager.RyuApp):
                 max_bandwidth_path = path;
             if len(bandwidth_arr) > 0:
                 link_bw = min(total_link_bw);
-                if path_bd >= 0.1*link_bw*1000:
+                if path_bd >= 0.5*link_bw*1000:
                     optimal_path.append(path)
-                    print(optimal_path)
+                    print("Optimal Path",optimal_path)
                     return optimal_path;
             else:
                 return;
@@ -396,7 +393,7 @@ class ProjectController(app_manager.RyuApp):
 
                         bw_available[str(dpid)][str(p)] = int(bw[str(dpid)][str(p)]) * 1000.0 - bw_used[dpid][p]
 
-                        print(str(dpid), "->", str(p), ":", bw_available[str(dpid)][str(p)], " kbps")
+                        #print(str(dpid), "->", str(p), ":", bw_available[str(dpid)][str(p)], " kbps")
 
                         # print str(dpid),"->",str(p),":", bw[str(dpid)][str(p)]," kbps"
 
@@ -409,6 +406,7 @@ class ProjectController(app_manager.RyuApp):
     def port_desc_stats_reply_handler(self, ev):
         switch = ev.msg.datapath
         for p in ev.msg.body:
+            #print(p.curr_speed)
             self.bandwidths[switch.id][p.port_no] = p.curr_speed
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
@@ -460,7 +458,7 @@ class ProjectController(app_manager.RyuApp):
                     h1 = self.hosts[src]
                     h2 = self.hosts[dst_mac]
                     out_port = self.install_paths(h1[0], h1[1], h2[0], h2[1], src_ip, dst_ip)
-                    self.install_paths(h2[0], h2[1], h1[0], h1[1], dst_ip, src_ip) # reverse
+                    # self.install_paths(h2[0], h2[1], h1[0], h1[1], dst_ip, src_ip) # reverse
 
         # print pkt
 
@@ -505,7 +503,7 @@ class ProjectController(app_manager.RyuApp):
 
     @set_ev_cls(event.EventSwitchLeave, MAIN_DISPATCHER)
     def switch_leave_handler(self, ev):
-        print (ev)
+
         switch = ev.switch.dp.id
         if switch in self.switches:
             self.switches.remove(switch)
